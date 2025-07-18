@@ -30,7 +30,7 @@ const taskId = createData.result;
 let modelUrl = '';
 let status = '';
 let tries = 0;
-const maxTries = 30;
+const maxTries = 100;
 
 while (status !== 'COMPLETED' && tries < maxTries) {
   tries++;
