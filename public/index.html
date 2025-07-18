@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Zen3D AI Viewer</title>
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+</head>
+<body style="text-align:center; background:#111; color:white;">
+  <h1>ZenTech AI Model Generator</h1>
+  <input id="promptInput" placeholder="Type your model idea..." style="padding:10px;"/>
+  <button onclick="generateModel()" style="padding:10px;">Generate 3D Model</button>
+  <div id="viewerArea"><p>Model will appear here</p></div>
+
+  <script>
+    async function generateModel() {
+      const prompt = document.getElementById('promptInput').value;
+      document.getElementById('viewerArea').innerHTML = 'Loading...';
+      const res = await fetch('/generate-model', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      });
+      const data = await res.json();
+      document.getElementById('viewerArea').innerHTML = `
+        <model-viewer src="${data.modelUrl}" auto-rotate camera-controls
+          style="width:600px;height:400px;"></model-viewer>
+      `;
+    }
+  </script>
+</body>
+</html>
