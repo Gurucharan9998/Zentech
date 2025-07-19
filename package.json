@@ -1,14 +1,14 @@
 {
-  "name": "zen3d",
+  "name": "zen3d-meshy",
   "version": "1.0.0",
-  "type": "module",
+  "description": "ZenTech3DLearning Meshy AI Integration",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "node-fetch": "^2.6.9",
-    "dotenv": "^16.3.1"
+    "node-fetch": "^2.6.11"
   }
 }
