@@ -1,17 +1,15 @@
-import express from 'express';
-import fetch from 'node-fetch';
-import dotenv from 'dotenv';
-
-dotenv.config();
-console.log('🔐 Loaded API key:', process.env.MESHY_API_KEY ? '[REDACTED]' : '[MISSING]');
+const express = require('express');
+const fetch = require('node-fetch');
+require('dotenv').config();
 
 const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
+console.log('🔐 Loaded API key:', process.env.MESHY_API_KEY ? '[REDACTED]' : '[MISSING]');
+
 app.post('/generate-model', async (req, res) => {
   const { prompt } = req.body;
-
   console.log('📝 Prompt received:', prompt);
 
   try {
