@@ -1,7 +1,9 @@
 import express from 'express';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
+
 dotenv.config();
+console.log('🔐 Loaded API key:', process.env.MESHY_API_KEY ? '[REDACTED]' : '[MISSING]');
 
 const app = express();
 app.use(express.json());
@@ -46,7 +48,9 @@ app.post('/generate-model', async (req, res) => {
       await new Promise(r => setTimeout(r, 3000));
 
       const statusRes = await fetch(`https://api.meshy.ai/openapi/v2/text-to-3d/${taskId}`, {
-        headers: { 'Authorization': `Bearer ${process.env.MESHY_API_KEY}` }
+        headers: {
+          'Authorization': `Bearer ${process.env.MESHY_API_KEY}`
+        }
       });
 
       const data = await statusRes.json();
