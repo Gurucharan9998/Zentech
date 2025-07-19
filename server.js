@@ -6,8 +6,15 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
+// ✅ Debug environment key loaded
 console.log('🔐 Loaded API key:', process.env.MESHY_API_KEY ? '[REDACTED]' : '[MISSING]');
 
+// ✅ Check endpoint to verify key is loaded
+app.get('/check-key', (req, res) => {
+  res.json({ keyLoaded: !!process.env.MESHY_API_KEY });
+});
+
+// ✅ Main API
 app.post('/generate-model', async (req, res) => {
   const { prompt } = req.body;
   console.log('📝 Prompt received:', prompt);
@@ -39,50 +46,4 @@ app.post('/generate-model', async (req, res) => {
 
     console.log('🚀 Polling loop started...');
 
-    while (status !== 'COMPLETED' && tries < maxTries) {
-      tries++;
-      console.log(`⏳ Polling status (try ${tries})`);
-
-      await new Promise(r => setTimeout(r, 3000));
-
-      const statusRes = await fetch(`https://api.meshy.ai/openapi/v2/text-to-3d/${taskId}`, {
-        headers: {
-          'Authorization': `Bearer ${process.env.MESHY_API_KEY}`
-        }
-      });
-
-      const data = await statusRes.json();
-      console.log('🔍 Status response:', data);
-
-      if (!data.status) {
-        return res.status(500).json({ error: 'Invalid status response', data });
-      }
-
-      status = data.status;
-
-      if (status === 'FAILED') {
-        return res.status(500).json({ error: 'Model generation failed', data });
-      }
-
-      if (status === 'COMPLETED') {
-        modelUrl = data.preview_url;
-        console.log('✅ Model ready at:', modelUrl);
-        break;
-      }
-    }
-
-    if (!modelUrl) {
-      console.warn('⏱️ Timed out after 5 minutes');
-      return res.status(504).json({ error: 'Model generation timed out after 5 minutes' });
-    }
-
-    res.json({ modelUrl });
-
-  } catch (err) {
-    console.error('🔥 Unexpected server error:', err);
-    res.status(500).json({ error: 'Server crashed during model generation' });
-  }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+    while (status !
