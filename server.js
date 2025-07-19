@@ -6,18 +6,15 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-// ✅ Debug environment key loaded
-console.log('🔐 Loaded API key:', process.env.MESHY_API_KEY ? '[REDACTED]' : '[MISSING]');
+console.log('Loaded API key:', process.env.MESHY_API_KEY ? '[REDACTED]' : '[MISSING]');
 
-// ✅ Check endpoint to verify key is loaded
 app.get('/check-key', (req, res) => {
   res.json({ keyLoaded: !!process.env.MESHY_API_KEY });
 });
 
-// ✅ Main API
 app.post('/generate-model', async (req, res) => {
   const { prompt } = req.body;
-  console.log('📝 Prompt received:', prompt);
+  console.log('Prompt received:', prompt);
 
   try {
     const createRes = await fetch('https://api.meshy.ai/openapi/v2/text-to-3d', {
@@ -32,18 +29,62 @@ app.post('/generate-model', async (req, res) => {
     const createData = await createRes.json();
 
     if (!createData.result) {
-      console.error('❌ Failed to start generation:', createData);
+      console.error('Failed to start generation:', createData);
       return res.status(500).json({ error: 'Meshy API rejected the prompt', details: createData });
     }
 
     const taskId = createData.result;
-    console.log('📦 Task created:', taskId);
+    console.log('Task created:', taskId);
 
     let modelUrl = '';
     let status = '';
     let tries = 0;
     const maxTries = 100;
 
-    console.log('🚀 Polling loop started...');
+    console.log('Polling loop started...');
 
-    while (status !
+    while (status !== 'COMPLETED' && tries < maxTries) {
+      tries++;
+      console.log(`Polling status (try ${tries})`);
+
+      await new Promise(r => setTimeout(r, 3000));
+
+      const statusRes = await fetch(`https://api.meshy.ai/openapi/v2/text-to-3d/${taskId}`, {
+        headers: { 'Authorization': `Bearer ${process.env.MESHY_API_KEY}` }
+      });
+
+      const data = await statusRes.json();
+      console.log('Status response:', data);
+
+      if (!data.status) {
+        return res.status(500).json({ error: 'Invalid status response', data });
+      }
+
+      status = data.status;
+
+      if (status === 'FAILED') {
+        return res.status(500).json({ error: 'Model generation failed', data });
+      }
+
+      if (status === 'COMPLETED') {
+        modelUrl = data.preview_url;
+        console.log('Model ready at:', modelUrl);
+        break;
+      }
+    }
+
+    if (!modelUrl) {
+      console.warn('Timed out after 5 minutes');
+      return res.status(504).json({ error: 'Model generation timed out after 5 minutes' });
+    }
+
+    res.json({ modelUrl });
+
+  } catch (err) {
+    console.error('Server error during model generation:', err);
+    res.status(500).json({ error: 'Server crashed during model generation' });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
