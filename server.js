@@ -5,67 +5,59 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
-app.use(express.static('public')); // serve static files from 'public' folder
+app.use(express.static('public')); // Serves index.html from /public folder
 
 app.post('/generate-model', async (req, res) => {
   const { prompt } = req.body;
-  const createRes = await fetch('https://api.meshy.ai/openapi/v2/text-to-3d', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.MESHY_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ prompt, mode: 'preview' })
-  });
-  const { result: taskId } = await createRes.json();
-const createData = await createRes.json();
 
-if (!createData.result) {
-  console.error('❌ Meshy create error:', createData);
-  return res.status(500).json({ error: 'Failed to create generation task', details: createData });
-}
+  console.log('📝 Prompt received:', prompt);
 
-const taskId = createData.result;
+  try {
+    const createRes = await fetch('https://api.meshy.ai/openapi/v2/text-to-3d', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.MESHY_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ prompt, mode: 'preview' })
+    });
 
-let modelUrl = '';
-let status = '';
-let tries = 0;
-const maxTries = 100;
+    const createData = await createRes.json();
 
-while (status !== 'COMPLETED' && tries < maxTries) {
-  tries++;
-  console.log(`⏳ Checking model status... try ${tries}`);
+    if (!createData.result) {
+      console.error('❌ Failed to start generation:', createData);
+      return res.status(500).json({ error: 'Meshy API rejected the prompt', details: createData });
+    }
 
-  await new Promise(r => setTimeout(r, 3000));
+    const taskId = createData.result;
+    console.log('📦 Task created:', taskId);
 
-  const statusRes = await fetch(`https://api.meshy.ai/openapi/v2/text-to-3d/${taskId}`, {
-    headers: { 'Authorization': `Bearer ${process.env.MESHY_API_KEY}` }
-  });
+    // Start polling
+    let modelUrl = '';
+    let status = '';
+    let tries = 0;
+    const maxTries = 100; // 100 x 3s = ~5 minutes
 
-  const data = await statusRes.json();
-  console.log('🔍 Meshy status:', data);
+    console.log('🚀 Polling loop started...');
 
-  if (!data.status) {
-    return res.status(500).json({ error: 'Unexpected response from Meshy', data });
-  }
+    while (status !== 'COMPLETED' && tries < maxTries) {
+      tries++;
+      console.log(`⏳ Polling status (try ${tries})`);
 
-  status = data.status;
+      await new Promise(r => setTimeout(r, 3000));
 
-  if (status === 'COMPLETED') {
-    modelUrl = data.preview_url;
-    break;
-  }
+      const statusRes = await fetch(`https://api.meshy.ai/openapi/v2/text-to-3d/${taskId}`, {
+        headers: { 'Authorization': `Bearer ${process.env.MESHY_API_KEY}` }
+      });
 
-  if (status === 'FAILED') {
-    return res.status(500).json({ error: 'Model generation failed', data });
-  }
-}
+      const data = await statusRes.json();
+      console.log('🔍 Status response:', data);
 
-if (!modelUrl) {
-  return res.status(504).json({ error: 'Model generation timed out' });
-}
+      if (!data.status) {
+        return res.status(500).json({ error: 'Invalid status response', data });
+      }
 
-res.json({ modelUrl });
-});
+      status = data.status;
 
-app.listen(3000, () => console.log('✅ Server running on port 3000'));
+      if (status === 'FAILED') {
+        return res.status(500).json({ error: 'Model generation failed', data })
