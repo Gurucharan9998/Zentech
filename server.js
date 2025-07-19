@@ -5,7 +5,7 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
-app.use(express.static('public')); // Serves index.html from /public folder
+app.use(express.static('public'));
 
 app.post('/generate-model', async (req, res) => {
   const { prompt } = req.body;
@@ -32,11 +32,10 @@ app.post('/generate-model', async (req, res) => {
     const taskId = createData.result;
     console.log('📦 Task created:', taskId);
 
-    // Start polling
     let modelUrl = '';
     let status = '';
     let tries = 0;
-    const maxTries = 100; // 100 x 3s = ~5 minutes
+    const maxTries = 100;
 
     console.log('🚀 Polling loop started...');
 
@@ -60,4 +59,28 @@ app.post('/generate-model', async (req, res) => {
       status = data.status;
 
       if (status === 'FAILED') {
-        return res.status(500).json({ error: 'Model generation failed', data })
+        return res.status(500).json({ error: 'Model generation failed', data });
+      }
+
+      if (status === 'COMPLETED') {
+        modelUrl = data.preview_url;
+        console.log('✅ Model ready at:', modelUrl);
+        break;
+      }
+    }
+
+    if (!modelUrl) {
+      console.warn('⏱️ Timed out after 5 minutes');
+      return res.status(504).json({ error: 'Model generation timed out after 5 minutes' });
+    }
+
+    res.json({ modelUrl });
+
+  } catch (err) {
+    console.error('🔥 Unexpected server error:', err);
+    res.status(500).json({ error: 'Server crashed during model generation' });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
